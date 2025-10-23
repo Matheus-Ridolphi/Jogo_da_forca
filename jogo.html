@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jogo da Forca</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --brand: #38bdf8;
+      --card: #0b1220;
+      --input: #0b1220;
+      --ring: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
+        Cantarell, Noto Sans, Helvetica Neue, Arial;
+      background: radial-gradient(1200px 800px at 70% -10%, #1e293b, #0b1020 65%, #060a17 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+    .container {
+      width: min(960px, 94vw);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border: 1px solid rgba(148,163,184,0.15);
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.45);
+      overflow: hidden;
+    }
+    header {
+      padding: 24px clamp(16px, 4vw, 36px);
+      background: linear-gradient(180deg, rgba(56,189,248,0.10), rgba(56,189,248,0.02));
+      border-bottom: 1px solid rgba(148,163,184,0.12);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 {
+      margin: 0; font-size: clamp(22px, 3vw, 32px);
+    }
+    header .badge { font-size: 12px; color: var(--muted) }
+
+    main { padding: 28px clamp(16px, 4vw, 36px) 36px; }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .card { background: var(--card); border: 1px solid rgba(148,163,184,0.12); border-radius: 16px; padding: clamp(18px, 3.6vw, 28px); }
+    .stack { display: grid; gap: 12px; }
+    label { font-size: 14px; color: var(--muted); }
+    select, input[type="text"] { width: 100%; background: var(--input); color: var(--text); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; outline: none; }
+    button { background: linear-gradient(180deg, rgba(56,189,248,0.2), rgba(56,189,248,0.05)); color: #e6f6ff; border: 1px solid rgba(56,189,248,0.35); border-radius: 12px; padding: 12px 16px; font-weight: 600; cursor: pointer; transition: transform .04s ease, box-shadow .2s ease, filter .2s ease; }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+    .btn-primary { background: linear-gradient(180deg, rgba(34,197,94,0.25), rgba(34,197,94,0.08)); border-color: rgba(34,197,94,0.45); }
+    .btn-danger  { background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(239,68,68,0.06)); border-color: rgba(239,68,68,0.45); }
+
+    .row { display: flex; gap: 12px; align-items: center; }
+    .row.wrap { flex-wrap: wrap; }
+
+    .game-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(16px, 3vw, 28px); align-items: start; }
+    @media (max-width: 860px) { .game-grid { grid-template-columns: 1fr; } }
+
+    .panel { background: var(--card); border: 1px solid rgba(148,163,184,0.12); border-radius: 16px; padding: clamp(16px, 2.8vw, 22px); }
+    .panel h3 { margin: 0 0 8px 0; font-size: 16px; color: var(--muted); font-weight: 600; }
+
+    .slots { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+    .slot { width: 36px; height: 46px; border-bottom: 3px solid rgba(148,163,184,0.45); display: grid; place-items: center; font-size: 20px; font-weight: 700; }
+    .slot.space { width: 18px; border-bottom: none; }
+
+    .used { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+    .chip { border: 1px dashed rgba(148,163,184,0.35); color: var(--muted); padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+
+    .hangman { width: 100%; aspect-ratio: 4/3; background: radial-gradient(500px 220px at 60% 10%, rgba(56,189,248,0.08), transparent 60%); border-radius: 12px; display: grid; place-items: center; }
+    svg { width: min(420px, 90%); height: auto; }
+    .limb { opacity: 0; transition: opacity .25s ease; }
+    .limb.show { opacity: 1; }
+    .head { opacity: 1; }
+
+    .input-bar { display: flex; gap: 10px; }
+    .input-bar input { flex: 1; }
+
+    .result { position: fixed; inset: 0; display: none; place-items: center; backdrop-filter: blur(6px); background: rgba(2,6,23,0.48); }
+    .result.active { display: grid; }
+    .result .modal { width: min(520px, 92vw); background: var(--panel); border: 1px solid rgba(148,163,184,0.15); border-radius: 16px; padding: 22px; }
+    .result h2 { margin: 0 0 6px 0; }
+    .result p { margin: 4px 0 16px 0; color: var(--muted) }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Jogo da Forca</h1>
+      <div class="badge">HTML • CSS • JavaScript</div>
+    </header>
+    <main>
+      <section id="start-screen" class="screen active">
+        <div class="card stack">
+          <p style="margin:0;color:var(--muted)">Escolha um tema e clique em <strong>Start</strong>.</p>
+          <div class="stack">
+            <label for="theme">Tema</label>
+            <select id="theme">
+              <option value="futebol">Times de futebol</option>
+              <option value="salgados">Salgadinhos</option>
+              <option value="robotica">Equipamentos de robótica</option>
+            </select>
+          </div>
+          <div class="row" style="justify-content: space-between; margin-top: 8px;">
+            <small style="color:var(--muted)">Dica: você pode digitar uma <em>letra</em> ou a <em>palavra inteira</em>.</small>
+            <button id="btn-start" class="btn-primary">Start ▶</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="game-screen" class="screen">
+        <div class="game-grid">
+          <div class="panel">
+            <h3>Boneco</h3>
+            <div class="hangman">
+              <svg viewBox="0 0 260 220">
+                <line x1="20" y1="200" x2="240" y2="200" stroke="#334155" stroke-width="6"/>
+                <line x1="60" y1="200" x2="60" y2="20" stroke="#334155" stroke-width="6"/>
+                <line x1="60" y1="20" x2="160" y2="20" stroke="#334155" stroke-width="6"/>
+                <line x1="160" y1="20" x2="160" y2="48" stroke="#334155" stroke-width="4"/>
+                <circle class="head" cx="160" cy="70" r="20" fill="none" stroke="#e2e8f0" stroke-width="4"/>
+                <line id="torso" class="limb" x1="160" y1="90" x2="160" y2="130" stroke="#e2e8f0" stroke-width="4"/>
+                <line id="armL" class="limb" x1="160" y1="100" x2="138" y2="118" stroke="#e2e8f0" stroke-width="4"/>
+                <line id="armR" class="limb" x1="160" y1="100" x2="182" y2="118" stroke="#e2e8f0" stroke-width="4"/>
+                <line id="legL" class="limb" x1="160" y1="130" x2="145" y2="160" stroke="#e2e8f0" stroke-width="4"/>
+                <line id="legR" class="limb" x1="160" y1="130" x2="175" y2="160" stroke="#e2e8f0" stroke-width="4"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>Palavra</h3>
+            <p id="theme-label" style="margin:0 0 8px 0; color:var(--muted); font-size:14px;"></p>
+            <div id="slots" class="slots" aria-live="polite"></div>
+            <div style="margin-top: 12px;">
+              <label>Letras usadas</label>
+              <div id="used-letters" class="used"></div>
+            </div>
+            <div style="margin-top: 16px;" class="stack">
+              <label for="guess">Digite uma letra OU a palavra inteira</label>
+              <div class="input-bar">
+                <input id="guess" type="text" maxlength="32" placeholder="Ex.: a  •  arduino" autocomplete="off" />
+                <button id="btn-try" class="btn-primary">Tentar</button>
+                <button id="btn-giveup" class="btn-danger">Desistir</button>
+              </div>
+              <small id="tip" style="color:var(--muted);">⚠️ Só 1 tentativa para a palavra inteira.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="result" class="result">
+    <div class="modal">
+      <h2 id="result-title">Você venceu!</h2>
+      <p id="result-text"></p>
+      <div class="row" style="justify-content: flex-end; gap: 10px;">
+        <button id="btn-home">Voltar ao início</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ======= Listas de palavras =======
+    const WORDS = {
+      futebol: ["flamengo","vasco","santos","palmeiras","fluminense","corinthians","gremio","internacional","botafogo","sao paulo"],
+      salgados: ["coxinha","pastel","enroladinho","kibe","empada","esfirra","bolinho","tapioca","rolinho","quibe"],
+      robotica: ["arduino","microbit","led","motor","sensor","protoboard","resistor","temperatura","ultrassom","potenciometro"]
+    };
+
+    // ======= Referências de DOM =======
+    const startScreen = document.getElementById('start-screen');
+    const gameScreen  = document.getElementById('game-screen');
+    const resultEl    = document.getElementById('result');
+
+    const themeSelect = document.getElementById('theme');
+    const btnStart    = document.getElementById('btn-start');
+    const btnTry      = document.getElementById('btn-try');
+    const btnGiveUp   = document.getElementById('btn-giveup');
+    const btnHome     = document.getElementById('btn-home');
+
+    const slotsEl     = document.getElementById('slots');
+    const usedEl      = document.getElementById('used-letters');
+    const guessInput  = document.getElementById('guess');
+    const themeLabel  = document.getElementById('theme-label');
+
+    const resultTitle = document.getElementById('result-title');
+    const resultText  = document.getElementById('result-text');
+
+    const limbs = [
+      document.getElementById('torso'),
+      document.getElementById('armL'),
+      document.getElementById('armR'),
+      document.getElementById('legL'),
+      document.getElementById('legR')
+    ];
+
+    // ======= Estado =======
+    let state = {};
+
+    // ======= Helpers =======
+    function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function normalize(str){
+      return str
+        .toLowerCase()
+        .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+        .replace(/\s+/g,' ')
+        .trim();
+    }
+
+    // ======= Fluxo =======
+    function startGame(){
+      const theme = themeSelect.value;
+      const original = pickRandom(WORDS[theme]);
+      const target = normalize(original);
+
+      state = {
+        theme,
+        originalWord: original,
+        targetWord: target,
+        letters: new Set(target.replace(/\s/g,'').split('')),
+        revealed: new Set(),
+        usedLetters: new Set(),
+        errors: 0,
+        maxErrors: limbs.length,
+        triedWhole: false,
+        finished: false
+      };
+
+      startScreen.classList.remove('active');
+      gameScreen.classList.add('active');
+      resultEl.classList.remove('active');
+
+      limbs.forEach(l=>l.classList.remove('show'));
+      renderSlots();
+      renderUsed();
+      guessInput.value='';
+      guessInput.focus();
+      updateThemeLabel();
+    }
+
+    function updateThemeLabel(){
+      const labels = { futebol:'Times de futebol', salgados:'Salgadinhos', robotica:'Equipamentos de robótica' };
+      themeLabel.textContent = 'Tema: ' + labels[state.theme];
+    }
+
+    function renderSlots(){
+      slotsEl.innerHTML = '';
+      const chars = state.originalWord.split('');
+      chars.forEach(ch=>{
+        if(ch===' '){
+          const s = document.createElement('div');
+          s.className = 'slot space';
+          slotsEl.appendChild(s);
+          return;
+        }
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        const n = normalize(ch);
+        slot.textContent = state.revealed.has(n) ? ch.toUpperCase() : '';
+        slotsEl.appendChild(slot);
+      });
+    }
+
+    function renderUsed(){
+      usedEl.innerHTML = '';
+      [...state.usedLetters].sort().forEach(l=>{
+        const c = document.createElement('div');
+        c.className = 'chip';
+        c.textContent = l.toUpperCase();
+        usedEl.appendChild(c);
+      });
+    }
+
+    function revealLetter(letter){
+      state.revealed.add(letter);
+      renderSlots();
+      const allRevealed = [...state.letters].every(l => state.revealed.has(l));
+      if(allRevealed) finish(true);
+    }
+
+    function addError(){
+      if(state.errors < state.maxErrors){
+        limbs[state.errors].classList.add('show');
+        state.errors += 1;
+        if(state.errors >= state.maxErrors) finish(false);
+      }
+    }
+
+    function tryGuess(){
+      if(state.finished) return;
+      const raw = guessInput.value.trim();
+      if(!raw) return;
+      const val = normalize(raw);
+      guessInput.value = '';
+
+      if(val.length === 1){
+        // tentativa de letra
+        const letter = val;
+        if(state.usedLetters.has(letter) || state.revealed.has(letter)) return;
+        state.usedLetters.add(letter);
+        renderUsed();
+        if(state.letters.has(letter)){
+          revealLetter(letter);
+        } else {
+          addError();
+        }
+      } else {
+        // tentativa de palavra (apenas 1)
+        if(state.triedWhole) return;
+        state.triedWhole = true;
+        if(val === state.targetWord){
+          finish(true);
+        } else {
+          state.errors = state.maxErrors;
+          limbs.forEach(l=>l.classList.add('show'));
+          finish(false, true);
+        }
+      }
+    }
+
+    function finish(win, byWhole=false){
+      state.finished = true;
+      resultTitle.textContent = win ? 'Você VENCEU! 🎉' : 'Você PERDEU 😵';
+      if(win){
+        resultText.textContent = 'Parabéns! A palavra era: ' + state.originalWord.toUpperCase() + ' — ' + themeLabel.textContent;
+      } else {
+        resultText.textContent = (byWhole ? 'Você errou a tentativa da palavra inteira. ' : '') + 'A palavra correta era: ' + state.originalWord.toUpperCase() + ' — ' + themeLabel.textContent;
+      }
+      resultEl.classList.add('active');
+    }
+
+    function goHome(){
+      gameScreen.classList.remove('active');
+      startScreen.classList.add('active');
+      resultEl.classList.remove('active');
+    }
+
+    // ======= Eventos =======
+    btnStart.addEventListener('click', startGame);
+    btnTry.addEventListener('click', tryGuess);
+    btnGiveUp.addEventListener('click', goHome);
+    btnHome.addEventListener('click', goHome);
+
+    guessInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryGuess(); });
+    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && gameScreen.classList.contains('active')) goHome(); });
+  </script>
+</body>
+</html>
